@@ -1,9 +1,11 @@
 package gitcredentials_test
 
 import (
+	"bytes"
 	"context"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/cli/cli/v2/git"
@@ -24,6 +26,40 @@ func withIsolatedGitConfig(t *testing.T) {
 
 	// And disable git reading the system config
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "true")
+
+	// Clear any credential helpers and username set in the local git config
+	// (e.g. by GitHub Actions checkout), and restore them after the test completes.
+	gc := &git.Client{}
+	ctx := context.Background()
+	for _, key := range []string{"credential.helper", "credential.username"} {
+		cmd, err := gc.Command(ctx, "config", "--local", "--get-all", key)
+		if err != nil {
+			continue
+		}
+		out, err := cmd.Output()
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			continue
+		}
+		savedValues := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+		unsetCmd, err := gc.Command(ctx, "config", "--local", "--unset-all", key)
+		if err == nil {
+			_ = unsetCmd.Run()
+		}
+
+		t.Cleanup(func() {
+			for _, v := range savedValues {
+				if v == "" {
+					continue
+				}
+				addCmd, err := gc.Command(ctx, "config", "--local", "--add", key, v)
+				if err == nil {
+					addCmd.Stdin = bytes.NewReader(nil)
+					_ = addCmd.Run()
+				}
+			}
+		})
+	}
 }
 
 func configureTestCredentialHelper(t *testing.T, key string) {

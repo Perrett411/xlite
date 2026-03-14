@@ -18,6 +18,7 @@ func Test_CheckAuth(t *testing.T) {
 	}{
 		{
 			name:     "no known hosts, no env auth token",
+			env:      map[string]string{"GITHUB_TOKEN": "", "GH_TOKEN": ""},
 			expected: false,
 		},
 		{

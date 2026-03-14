@@ -97,8 +97,10 @@ func NewFromString(cfgStr string) *ghmock.ConfigMock {
 // NewIsolatedTestConfig sets up a Mock keyring, creates a blank config
 // overwrites the ghConfig.Read function that returns a singleton config
 // in the real implementation, sets the GH_CONFIG_DIR env var so that
-// any call to Write goes to a different location on disk, and then returns
-// the blank config and a function that reads any data written to disk.
+// any call to Write goes to a different location on disk, clears
+// environment auth token variables so that tests are not affected by
+// tokens present in the calling environment, and then returns the blank
+// config and a function that reads any data written to disk.
 func NewIsolatedTestConfig(t *testing.T) (*cfg, func(io.Writer, io.Writer)) {
 	keyring.MockInit()
 
@@ -121,6 +123,15 @@ func NewIsolatedTestConfig(t *testing.T) (*cfg, func(io.Writer, io.Writer)) {
 	// We should consider whether it makes sense to change that but in the meantime
 	// we can use GH_CONFIG_DIR env var to ensure the tests remain isolated.
 	readConfigs := StubWriteConfig(t)
+
+	// Clear environment auth token variables so that tests are not affected
+	// by tokens present in the calling environment (e.g. GITHUB_TOKEN set in
+	// GitHub Actions). Tests that need a specific token should set it
+	// explicitly using t.Setenv, which will be restored after the test.
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_ENTERPRISE_TOKEN", "")
+	t.Setenv("GITHUB_ENTERPRISE_TOKEN", "")
 
 	return &cfg, readConfigs
 }
