@@ -23,13 +23,35 @@ type Detector interface {
 }
 
 type IssueFeatures struct {
-	StateReason       bool
-	ActorIsAssignable bool
+	// TODO ApiActorsSupported
+	// ApiActorsSupported indicates the host supports actor-based APIs. True for
+	// github.com and ghe.com, false for GHES.
+	//
+	// The GitHub API has two generations of assignee/reviewer types:
+	//
+	// Legacy (GHES): Uses AssignableUser (users only) and node-ID-based mutations.
+	//   - assignableUsers query returns []AssignableUser
+	//   - Mutations take node IDs (assigneeIds, userReviewerIds, teamReviewerIds)
+	//
+	// Actor-based (github.com): Uses AssignableActor (User + Bot union) and
+	// login-based mutations, enabling assignment of non-user actors like Copilot.
+	//   - suggestedActors query returns []AssignableActor (User | Bot)
+	//   - suggestedReviewerActors returns []ReviewerCandidate (User | Bot | Team)
+	//   - Mutations take logins (replaceActorsForAssignable, requestReviewsByLogin)
+	//
+	// When GHES adds support for the actor-based types and mutations, this flag
+	// can be removed and all // TODO ApiActorsSupported sites collapsed to the
+	// actor-only path. To verify GHES support, check whether the GHES GraphQL
+	// schema includes:
+	//   - The suggestedActors field on Repository (assignee search)
+	//   - The suggestedReviewerActors field on PullRequest (reviewer search)
+	//   - The replaceActorsForAssignable mutation
+	//   - The requestReviewsByLogin mutation
+	ApiActorsSupported bool
 }
 
 var allIssueFeatures = IssueFeatures{
-	StateReason:       true,
-	ActorIsAssignable: true,
+	ApiActorsSupported: true,
 }
 
 type PullRequestFeatures struct {
@@ -137,32 +159,9 @@ func (d *detector) IssueFeatures() (IssueFeatures, error) {
 		return allIssueFeatures, nil
 	}
 
-	features := IssueFeatures{
-		StateReason:       false,
-		ActorIsAssignable: false, // replaceActorsForAssignable GraphQL mutation unavailable on GHES
-	}
-
-	var featureDetection struct {
-		Issue struct {
-			Fields []struct {
-				Name string
-			} `graphql:"fields(includeDeprecated: true)"`
-		} `graphql:"Issue: __type(name: \"Issue\")"`
-	}
-
-	gql := api.NewClientFromHTTP(d.httpClient)
-	err := gql.Query(d.host, "Issue_fields", &featureDetection, nil)
-	if err != nil {
-		return features, err
-	}
-
-	for _, field := range featureDetection.Issue.Fields {
-		if field.Name == "stateReason" {
-			features.StateReason = true
-		}
-	}
-
-	return features, nil
+	return IssueFeatures{
+		ApiActorsSupported: false, // TODO ApiActorsSupported — actor-based mutations unavailable on GHES
+	}, nil
 }
 
 func (d *detector) PullRequestFeatures() (PullRequestFeatures, error) {

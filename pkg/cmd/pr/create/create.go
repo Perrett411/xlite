@@ -21,6 +21,7 @@ import (
 	fd "github.com/cli/cli/v2/internal/featuredetection"
 	"github.com/cli/cli/v2/internal/gh"
 	"github.com/cli/cli/v2/internal/ghrepo"
+	"github.com/cli/cli/v2/internal/prompter"
 	"github.com/cli/cli/v2/internal/text"
 	"github.com/cli/cli/v2/pkg/cmd/pr/shared"
 	"github.com/cli/cli/v2/pkg/cmdutil"
@@ -398,9 +399,39 @@ func createRun(opts *CreateOptions) error {
 
 	client := ctx.Client
 
-	state, err := NewIssueState(*ctx, *opts)
+	// Detect ApiActorsSupported feature to determine if we can use search-based
+	// reviewer selection (github.com) or need to use legacy ID-based selection (GHES)
+	issueFeatures, err := opts.Detector.IssueFeatures()
 	if err != nil {
 		return err
+	}
+	var reviewerSearchFunc func(string) prompter.MultiSelectSearchResult
+	var assigneeSearchFunc func(string) prompter.MultiSelectSearchResult
+	if issueFeatures.ApiActorsSupported {
+		reviewerSearchFunc = func(query string) prompter.MultiSelectSearchResult {
+			candidates, moreResults, err := api.SuggestedReviewerActorsForRepo(client, ctx.PRRefs.BaseRepo(), query)
+			if err != nil {
+				return prompter.MultiSelectSearchResult{Err: err}
+			}
+			keys := make([]string, len(candidates))
+			labels := make([]string, len(candidates))
+			for i, c := range candidates {
+				keys[i] = c.Login()
+				labels[i] = c.DisplayName()
+			}
+			return prompter.MultiSelectSearchResult{Keys: keys, Labels: labels, MoreResults: moreResults}
+		}
+		assigneeSearchFunc = shared.RepoAssigneeSearchFunc(client, ctx.PRRefs.BaseRepo())
+	}
+
+	state, err := NewIssueState(*ctx, *opts, issueFeatures.ApiActorsSupported)
+	if err != nil {
+		return err
+	}
+
+	// TODO ApiActorsSupported
+	if issueFeatures.ApiActorsSupported {
+		state.ApiActorsSupported = true
 	}
 
 	var openURL string
@@ -569,7 +600,7 @@ func createRun(opts *CreateOptions) error {
 				Repo:      ctx.PRRefs.BaseRepo(),
 				State:     state,
 			}
-			err = shared.MetadataSurvey(opts.Prompter, opts.IO, ctx.PRRefs.BaseRepo(), fetcher, state, projectsV1Support)
+			err = shared.MetadataSurvey(opts.Prompter, opts.IO, ctx.PRRefs.BaseRepo(), fetcher, state, projectsV1Support, reviewerSearchFunc, assigneeSearchFunc)
 			if err != nil {
 				return err
 			}
@@ -641,21 +672,24 @@ func initDefaultTitleBody(ctx CreateContext, state *shared.IssueMetadataState, u
 	return nil
 }
 
-func NewIssueState(ctx CreateContext, opts CreateOptions) (*shared.IssueMetadataState, error) {
+func NewIssueState(ctx CreateContext, opts CreateOptions, apiActorsSupported bool) (*shared.IssueMetadataState, error) {
 	var milestoneTitles []string
 	if opts.Milestone != "" {
 		milestoneTitles = []string{opts.Milestone}
 	}
 
-	meReplacer := shared.NewMeReplacer(ctx.Client, ctx.PRRefs.BaseRepo().RepoHost())
-	assignees, err := meReplacer.ReplaceSlice(opts.Assignees)
+	assigneeReplacer := shared.NewSpecialAssigneeReplacer(ctx.Client, ctx.PRRefs.BaseRepo().RepoHost(), apiActorsSupported, !opts.WebMode)
+	assignees, err := assigneeReplacer.ReplaceSlice(opts.Assignees)
 	if err != nil {
 		return nil, err
 	}
 
+	copilotReplacer := shared.NewCopilotReviewerReplacer()
+	reviewers := copilotReplacer.ReplaceSlice(opts.Reviewers)
+
 	state := &shared.IssueMetadataState{
 		Type:          shared.PRMetadata,
-		Reviewers:     opts.Reviewers,
+		Reviewers:     reviewers,
 		Assignees:     assignees,
 		Labels:        opts.Labels,
 		ProjectTitles: opts.Projects,
