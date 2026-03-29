@@ -80,14 +80,23 @@ fi
 
 rm -f "$GO_MOD.bak"
 
-git add "$GO_MOD"
+# ---- Optionally run go mod tidy ---------------------------------------------
+go mod tidy
+
+# ---- Bail out if nothing actually changed -----------------------------------
+if git diff --quiet -- "$GO_MOD"; then
+  echo "No Go version bump needed."
+  exit 0
+fi
+
+git add "$GO_MOD" go.sum
 
 # ---- Commit -----------------------------------------------------------------
-COMMIT_MSG="Bump Go to $TOOLCHAIN_VERSION"
+COMMIT_MSG="chore(go): bump Go version"
 git commit -m "$COMMIT_MSG" >/dev/null
 COMMIT_HASH=$(git rev-parse --short HEAD)
 
-PR_TITLE="$COMMIT_MSG"
+PR_TITLE="Bump Go to $TOOLCHAIN_VERSION"
 
 # ---- Check for existing PR --------------------------------------------------
 existing_pr=$(gh search prs --repo cli/cli --match title "$PR_TITLE" --json title --jq "map(select(.title == \"$PR_TITLE\") | .title) | length > 0")
