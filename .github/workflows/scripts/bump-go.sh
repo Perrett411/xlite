@@ -49,7 +49,7 @@ echo "  → toolchain : $TOOLCHAIN_VERSION"
 
 # ---- Prepare Git branch ---------------------------------------------------
 CURRENT_GO_DIRECTIVE=$(grep -E '^go ' "$GO_MOD" | cut -d ' ' -f2)
-CURRENT_TOOLCHAIN_DIRECTIVE=$(grep -E '^toolchain ' "$GO_MOD" | cut -d ' ' -f2)
+CURRENT_TOOLCHAIN_DIRECTIVE=$(grep -E '^toolchain ' "$GO_MOD" | cut -d ' ' -f2 || true)
 
 if [[ "$CURRENT_GO_DIRECTIVE" = "$GO_DIRECTIVE_VERSION" && \
       "$CURRENT_TOOLCHAIN_DIRECTIVE" = "go$TOOLCHAIN_VERSION" ]]; then
@@ -74,8 +74,12 @@ if [[ "$CURRENT_GO_DIRECTIVE" != "$GO_DIRECTIVE_VERSION" ]]; then
 fi
 
 if [[ "$CURRENT_TOOLCHAIN_DIRECTIVE" != "go$TOOLCHAIN_VERSION" ]]; then
-  sed -Ei.bak "s/^toolchain go[0-9]+\.[0-9]+\.[0-9]+.*$/toolchain go$TOOLCHAIN_VERSION/" "$GO_MOD"
-  echo "  • toolchain $CURRENT_TOOLCHAIN_DIRECTIVE → go$TOOLCHAIN_VERSION"
+  if [[ -n "$CURRENT_TOOLCHAIN_DIRECTIVE" ]]; then
+    sed -Ei.bak "s/^toolchain go[0-9]+\.[0-9]+\.[0-9]+.*$/toolchain go$TOOLCHAIN_VERSION/" "$GO_MOD"
+  else
+    sed -Ei.bak "/^go /a toolchain go$TOOLCHAIN_VERSION" "$GO_MOD"
+  fi
+  echo "  • toolchain ${CURRENT_TOOLCHAIN_DIRECTIVE:-<none>} → go$TOOLCHAIN_VERSION"
 fi
 
 rm -f "$GO_MOD.bak"
