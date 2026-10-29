@@ -66,7 +66,8 @@ echo "  → go : $GO_DIRECTIVE_VERSION"
 echo "  → toolchain : $TOOLCHAIN_VERSION"
 
 if [[ "$CURRENT_GO_DIRECTIVE" = "$GO_DIRECTIVE_VERSION" && \
-      "$CURRENT_TOOLCHAIN_DIRECTIVE" = "go$TOOLCHAIN_VERSION" ]]; then
+      ( ( "$CURRENT_TOOLCHAIN_DIRECTIVE" = "go$TOOLCHAIN_VERSION" && "$TOOLCHAIN_VERSION" != "$GO_DIRECTIVE_VERSION" ) || \
+        ( -z "$CURRENT_TOOLCHAIN_DIRECTIVE" && "$TOOLCHAIN_VERSION" = "$GO_DIRECTIVE_VERSION" ) ) ]]; then
   echo "Already on latest Go version: $CURRENT_GO_DIRECTIVE (toolchain: $CURRENT_TOOLCHAIN_DIRECTIVE)"
   exit 0
 fi
@@ -87,7 +88,12 @@ if [[ "$CURRENT_GO_DIRECTIVE" != "$GO_DIRECTIVE_VERSION" ]]; then
   echo "  • go directive $CURRENT_GO_DIRECTIVE → $GO_DIRECTIVE_VERSION"
 fi
 
-if [[ "$CURRENT_TOOLCHAIN_DIRECTIVE" != "go$TOOLCHAIN_VERSION" ]]; then
+if [[ "$TOOLCHAIN_VERSION" = "$GO_DIRECTIVE_VERSION" ]]; then
+  if [[ -n "$CURRENT_TOOLCHAIN_DIRECTIVE" ]]; then
+    sed -Ei.bak '/^toolchain /d' "$GO_MOD"
+    echo "  • removed redundant toolchain directive $CURRENT_TOOLCHAIN_DIRECTIVE"
+  fi
+elif [[ "$CURRENT_TOOLCHAIN_DIRECTIVE" != "go$TOOLCHAIN_VERSION" ]]; then
   if [[ -n "$CURRENT_TOOLCHAIN_DIRECTIVE" ]]; then
     sed -Ei.bak "s/^toolchain go[0-9]+\.[0-9]+\.[0-9]+.*$/toolchain go$TOOLCHAIN_VERSION/" "$GO_MOD"
   else
