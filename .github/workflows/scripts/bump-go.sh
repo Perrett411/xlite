@@ -44,12 +44,26 @@ TOOLCHAIN_VERSION="${FULL_VERSION#go}"                     # e.g. 1.23.4
 # so let's just ensure .0 is suffixed to the go directive.
 GO_DIRECTIVE_VERSION="$(cut -d. -f1-2 <<< "$TOOLCHAIN_VERSION").0"
 
-echo "  → go : $GO_DIRECTIVE_VERSION"
-echo "  → toolchain : $TOOLCHAIN_VERSION"
-
 # ---- Prepare Git branch ---------------------------------------------------
 CURRENT_GO_DIRECTIVE=$(grep -E '^go ' "$GO_MOD" | cut -d ' ' -f2)
 CURRENT_TOOLCHAIN_DIRECTIVE=$(grep -E '^toolchain ' "$GO_MOD" | cut -d ' ' -f2 || true)
+
+if awk -v current="$CURRENT_GO_DIRECTIVE" -v target="$GO_DIRECTIVE_VERSION" '
+  BEGIN {
+    split(current, current_parts, ".")
+    split(target, target_parts, ".")
+    for (i = 1; i <= 3; i++) {
+      if ((current_parts[i] + 0) > (target_parts[i] + 0)) exit 0
+      if ((current_parts[i] + 0) < (target_parts[i] + 0)) exit 1
+    }
+    exit 1
+  }
+'; then
+  GO_DIRECTIVE_VERSION="$CURRENT_GO_DIRECTIVE"
+fi
+
+echo "  → go : $GO_DIRECTIVE_VERSION"
+echo "  → toolchain : $TOOLCHAIN_VERSION"
 
 if [[ "$CURRENT_GO_DIRECTIVE" = "$GO_DIRECTIVE_VERSION" && \
       "$CURRENT_TOOLCHAIN_DIRECTIVE" = "go$TOOLCHAIN_VERSION" ]]; then
