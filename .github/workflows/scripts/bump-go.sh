@@ -48,9 +48,9 @@ echo "  → go : $GO_DIRECTIVE_VERSION"
 echo "  → toolchain : $TOOLCHAIN_VERSION"
 
 # ---- Prepare Git branch ---------------------------------------------------
-CURRENT_GO_DIRECTIVE=$(awk '$1 == "go" { print $2; exit }' "$GO_MOD")
+CURRENT_GO_DIRECTIVE=$(grep -E '^go ' "$GO_MOD" | cut -d ' ' -f2 || true)
 # The toolchain directive is optional; go.mod may not have one.
-CURRENT_TOOLCHAIN_DIRECTIVE=$(awk '$1 == "toolchain" { print $2; exit }' "$GO_MOD")
+CURRENT_TOOLCHAIN_DIRECTIVE=$(grep -E '^toolchain ' "$GO_MOD" | cut -d ' ' -f2 || true)
 
 if [[ "$CURRENT_GO_DIRECTIVE" = "$GO_DIRECTIVE_VERSION" && \
       ( -z "$CURRENT_TOOLCHAIN_DIRECTIVE" || "$CURRENT_TOOLCHAIN_DIRECTIVE" = "go$TOOLCHAIN_VERSION" ) ]]; then
