@@ -18,6 +18,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Quantum consensus gate
+        run: go run ./script/quantum-gate
+
       - name: Bump Go version
         env:
           GIT_COMMITTER_NAME: cli automation
