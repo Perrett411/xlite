@@ -272,3 +272,29 @@ func (q *QuantumConsensusFunction) FairnessEquality(loads []float64) (bool, floa
 	}
 	return dev <= FairnessTolerance*math.Max(1, math.Abs(mean)), dev
 }
+
+// Unfairness returns the Gini coefficient of the loads: 0 means perfectly
+// equal, values approaching 1 mean one node carries nearly everything.
+func (q *QuantumConsensusFunction) Unfairness(loads []float64) float64 {
+	n := float64(len(loads))
+	var total, diffs float64
+	for _, a := range loads {
+		total += a
+		for _, b := range loads {
+			diffs += math.Abs(a - b)
+		}
+	}
+	if n == 0 || total == 0 {
+		return 0
+	}
+	return diffs / (2 * n * total)
+}
+
+// Quality scores a consensus round in [0, 1]: it is 0 when the state fails
+// validation and otherwise 1 minus the load unfairness.
+func (q *QuantumConsensusFunction) Quality(state *QuantumState, loads []float64) float64 {
+	if !q.ValidateConsensus(state) {
+		return 0
+	}
+	return 1 - q.Unfairness(loads)
+}

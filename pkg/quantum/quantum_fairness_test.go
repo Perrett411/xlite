@@ -30,3 +30,19 @@ func TestReadjustErrors(t *testing.T) {
 	_, err = q.Readjust([]float64{1, -1})
 	require.Error(t, err)
 }
+
+func TestUnfairnessAndQuality(t *testing.T) {
+	q := New()
+	assert.Zero(t, q.Unfairness([]float64{2, 2, 2}))
+	assert.InDelta(t, 0.5, q.Unfairness([]float64{0, 4}), 1e-12)
+	assert.Zero(t, q.Unfairness(nil))
+
+	_, err := q.AdjustNodes(1, 1)
+	require.NoError(t, err)
+	state, err := q.EntangleNodes(nil)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 1, q.Quality(state, []float64{3, 3}), 1e-12)
+	assert.InDelta(t, 0.5, q.Quality(state, []float64{0, 4}), 1e-12)
+	assert.Zero(t, q.Quality(nil, []float64{3, 3}))
+}
