@@ -228,3 +228,47 @@ func marginalProbabilities(state *QuantumState) []float64 {
 	}
 	return probs
 }
+
+// FairnessTolerance is the maximum deviation from the mean load that is still
+// considered equal.
+const FairnessTolerance = 1e-9
+
+// Readjust redistributes the given per-node loads so every node carries an
+// equal share (the mean), preserving total load.
+func (q *QuantumConsensusFunction) Readjust(loads []float64) ([]float64, error) {
+	if len(loads) == 0 {
+		return nil, fmt.Errorf("loads must not be empty")
+	}
+	var total float64
+	for _, l := range loads {
+		if l < 0 {
+			return nil, fmt.Errorf("load must be non-negative, got %g", l)
+		}
+		total += l
+	}
+	share := total / float64(len(loads))
+	out := make([]float64, len(loads))
+	for i := range out {
+		out[i] = share
+	}
+	return out, nil
+}
+
+// FairnessEquality reports whether all loads are equal within FairnessTolerance
+// (relative to the mean) and returns the deviation from equality as the
+// largest absolute difference from the mean.
+func (q *QuantumConsensusFunction) FairnessEquality(loads []float64) (bool, float64) {
+	if len(loads) == 0 {
+		return false, 0
+	}
+	var total float64
+	for _, l := range loads {
+		total += l
+	}
+	mean := total / float64(len(loads))
+	var dev float64
+	for _, l := range loads {
+		dev = math.Max(dev, math.Abs(l-mean))
+	}
+	return dev <= FairnessTolerance*math.Max(1, math.Abs(mean)), dev
+}

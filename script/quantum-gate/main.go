@@ -30,5 +30,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "quantum gate: consensus failed with %d nodes\n", nodes)
 		os.Exit(1)
 	}
+	loads := make([]float64, nodes)
+	for i := range loads {
+		loads[i] = *load * float64(i+1) / float64(nodes)
+	}
+	loads, err = q.Readjust(loads)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "quantum gate:", err)
+		os.Exit(1)
+	}
+	if ok, dev := q.FairnessEquality(loads); !ok {
+		fmt.Fprintf(os.Stderr, "quantum gate: fairness equality violated (deviation %g)\n", dev)
+		os.Exit(1)
+	}
 	fmt.Printf("quantum gate: consensus validated with %d nodes\n", nodes)
 }
