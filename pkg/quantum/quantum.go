@@ -298,3 +298,30 @@ func (q *QuantumConsensusFunction) Quality(state *QuantumState, loads []float64)
 	}
 	return 1 - q.Unfairness(loads)
 }
+
+// DisparateImpactThreshold is the four-fifths (80%) rule used in US
+// employment-discrimination practice as a screen for disparate impact.
+const DisparateImpactThreshold = 0.8
+
+// DisparateImpactRatio returns min(shares)/max(shares). A ratio below
+// DisparateImpactThreshold indicates one node is treated markedly worse than
+// another. It returns 1 for empty or all-zero input.
+func (q *QuantumConsensusFunction) DisparateImpactRatio(shares []float64) float64 {
+	if len(shares) == 0 {
+		return 1
+	}
+	lo, hi := shares[0], shares[0]
+	for _, s := range shares {
+		lo = math.Min(lo, s)
+		hi = math.Max(hi, s)
+	}
+	if hi == 0 {
+		return 1
+	}
+	return lo / hi
+}
+
+// EqualTreatment reports whether the shares pass the four-fifths screen.
+func (q *QuantumConsensusFunction) EqualTreatment(shares []float64) bool {
+	return q.DisparateImpactRatio(shares) >= DisparateImpactThreshold
+}

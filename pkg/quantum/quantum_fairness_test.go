@@ -46,3 +46,11 @@ func TestUnfairnessAndQuality(t *testing.T) {
 	assert.InDelta(t, 0.5, q.Quality(state, []float64{0, 4}), 1e-12)
 	assert.Zero(t, q.Quality(nil, []float64{3, 3}))
 }
+
+func TestEqualTreatment(t *testing.T) {
+	q := New()
+	assert.True(t, q.EqualTreatment([]float64{10, 9, 8}))
+	assert.False(t, q.EqualTreatment([]float64{10, 7}))
+	assert.InDelta(t, 0.7, q.DisparateImpactRatio([]float64{10, 7}), 1e-12)
+	assert.Equal(t, 1.0, q.DisparateImpactRatio(nil))
+}
