@@ -38,44 +38,44 @@ func TestAdjustNodes(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:        "zero load clamps to min",
-			minNodes:    8, maxNodes: 64,
+			name:     "zero load clamps to min",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 0, maxLoad: 100,
 			wantNodes: 8,
 		},
 		{
-			name:        "full load clamps to max",
-			minNodes:    8, maxNodes: 64,
+			name:     "full load clamps to max",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 100, maxLoad: 100,
 			wantNodes: 64,
 		},
 		{
-			name:        "50% load gives half of max",
-			minNodes:    8, maxNodes: 64,
+			name:     "50% load gives half of max",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 50, maxLoad: 100,
 			wantNodes: 32,
 		},
 		{
-			name:        "overload clamps to max",
-			minNodes:    8, maxNodes: 64,
+			name:     "overload clamps to max",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 200, maxLoad: 100,
 			wantNodes: 64,
 		},
 		{
-			name:        "tiny load clamps to min",
-			minNodes:    8, maxNodes: 64,
+			name:     "tiny load clamps to min",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 1, maxLoad: 100,
 			wantNodes: 8, // int(64 * 0.01) = 0, clamped to 8
 		},
 		{
-			name:        "maxLoad zero returns error",
-			minNodes:    8, maxNodes: 64,
+			name:     "maxLoad zero returns error",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 50, maxLoad: 0,
 			wantErr: true,
 		},
 		{
-			name:        "negative maxLoad returns error",
-			minNodes:    8, maxNodes: 64,
+			name:     "negative maxLoad returns error",
+			minNodes: 8, maxNodes: 64,
 			currentLoad: 50, maxLoad: -1,
 			wantErr: true,
 		},
