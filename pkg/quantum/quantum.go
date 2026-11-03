@@ -58,11 +58,20 @@ func NewWithOptions(minNodes, maxNodes int) *QuantumConsensusFunction {
 // This fixes the undefined max_load variable present in the original Python
 // prototype by requiring callers to supply it explicitly.
 func (q *QuantumConsensusFunction) AdjustNodes(currentLoad, maxLoad float64) (int, error) {
+	if math.IsNaN(currentLoad) || math.IsNaN(maxLoad) {
+		return 0, fmt.Errorf("loads must not be NaN")
+	}
 	if maxLoad <= 0 {
 		return 0, fmt.Errorf("maxLoad must be positive, got %g", maxLoad)
 	}
+	if q.NodeRange[0] <= 0 || q.NodeRange[0] > q.NodeRange[1] {
+		return 0, fmt.Errorf("invalid node range [%d, %d]", q.NodeRange[0], q.NodeRange[1])
+	}
 	loadFactor := currentLoad / maxLoad
-	nodes := int(float64(q.NodeRange[1]) * loadFactor)
+	nodes := q.NodeRange[1]
+	if scaled := float64(q.NodeRange[1]) * loadFactor; scaled < float64(nodes) {
+		nodes = int(scaled)
+	}
 	if nodes < q.NodeRange[0] {
 		nodes = q.NodeRange[0]
 	}
@@ -97,6 +106,9 @@ func (q *QuantumConsensusFunction) EntangleNodes(_ []float64) (*QuantumState, er
 	n := q.ActiveNodes
 	if n <= 0 {
 		return nil, fmt.Errorf("ActiveNodes must be positive, got %d", n)
+	}
+	if n > DefaultMaxNodes {
+		return nil, fmt.Errorf("ActiveNodes must not exceed %d, got %d", DefaultMaxNodes, n)
 	}
 
 	// |0…0⟩
@@ -296,7 +308,7 @@ func (q *QuantumConsensusFunction) Quality(state *QuantumState, loads []float64)
 	if !q.ValidateConsensus(state) {
 		return 0
 	}
-	return 1 - q.Unfairness(loads)
+	return math.Max(0, 1-q.Unfairness(loads))
 }
 
 // DisparateImpactThreshold is the four-fifths (80%) rule used in US
