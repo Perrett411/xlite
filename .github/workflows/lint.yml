@@ -48,7 +48,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: v2.11.0
+          version: v2.13.0
 
       # Verify that license generation succeeds for all release platforms (GOOS/GOARCH).
       # This catches issues like new dependencies with unrecognized licenses before release time.
@@ -81,4 +81,4 @@ jobs:
       # Since our builds do not use `-buildvcs=false`, we run in source mode here instead.
       - name: Check Go vulnerabilities
         run: |
-          go run golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
