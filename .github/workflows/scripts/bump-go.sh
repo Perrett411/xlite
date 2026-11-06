@@ -45,8 +45,8 @@ TOOLCHAIN_VERSION="${FULL_VERSION#go}"                     # e.g. 1.23.4
 GO_DIRECTIVE_VERSION="$(cut -d. -f1-2 <<< "$TOOLCHAIN_VERSION").0"
 
 # ---- Prepare Git branch ---------------------------------------------------
-CURRENT_GO_DIRECTIVE=$(grep -E '^go ' "$GO_MOD" | cut -d ' ' -f2)
-CURRENT_TOOLCHAIN_DIRECTIVE=$(grep -E '^toolchain ' "$GO_MOD" | cut -d ' ' -f2 || true)
+CURRENT_GO_DIRECTIVE=$(awk '$1 == "go" { print $2; exit }' "$GO_MOD")
+CURRENT_TOOLCHAIN_DIRECTIVE=$(awk '$1 == "toolchain" { print $2; exit }' "$GO_MOD")
 
 if awk -v current="$CURRENT_GO_DIRECTIVE" -v target="$GO_DIRECTIVE_VERSION" '
   BEGIN {
@@ -84,20 +84,22 @@ git switch -c "$BRANCH" >/dev/null 2>&1
 
 # ---- Patch go.mod -----------------------------------------------------------
 if [[ "$CURRENT_GO_DIRECTIVE" != "$GO_DIRECTIVE_VERSION" ]]; then
-  sed -Ei.bak "s/^go [0-9]+\.[0-9]+.*$/go $GO_DIRECTIVE_VERSION/" "$GO_MOD"
+  sed -Ei.bak "s/^go[[:space:]]+[0-9]+\.[0-9]+.*$/go $GO_DIRECTIVE_VERSION/" "$GO_MOD"
   echo "  • go directive $CURRENT_GO_DIRECTIVE → $GO_DIRECTIVE_VERSION"
 fi
 
 if [[ "$TOOLCHAIN_VERSION" = "$GO_DIRECTIVE_VERSION" ]]; then
   if [[ -n "$CURRENT_TOOLCHAIN_DIRECTIVE" ]]; then
-    sed -Ei.bak '/^toolchain /d' "$GO_MOD"
+    sed -Ei.bak '/^toolchain[[:space:]]/d' "$GO_MOD"
     echo "  • removed redundant toolchain directive $CURRENT_TOOLCHAIN_DIRECTIVE"
   fi
 elif [[ "$CURRENT_TOOLCHAIN_DIRECTIVE" != "go$TOOLCHAIN_VERSION" ]]; then
   if [[ -n "$CURRENT_TOOLCHAIN_DIRECTIVE" ]]; then
-    sed -Ei.bak "s/^toolchain go[0-9]+\.[0-9]+\.[0-9]+.*$/toolchain go$TOOLCHAIN_VERSION/" "$GO_MOD"
+    sed -Ei.bak "s/^toolchain[[:space:]]+go[0-9]+\.[0-9]+\.[0-9]+.*$/toolchain go$TOOLCHAIN_VERSION/" "$GO_MOD"
   else
-    sed -Ei.bak "/^go /a toolchain go$TOOLCHAIN_VERSION" "$GO_MOD"
+    sed -Ei.bak "/^go[[:space:]]/a\\
+\\
+toolchain go$TOOLCHAIN_VERSION" "$GO_MOD"
   fi
   echo "  • toolchain ${CURRENT_TOOLCHAIN_DIRECTIVE:-<none>} → go$TOOLCHAIN_VERSION"
 fi
